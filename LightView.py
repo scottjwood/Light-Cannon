@@ -7,10 +7,11 @@ from bpy.props import *
 meshorlamp = False
 meshtypes = (
     # Mesh Types
-    ("PLANE", "Area", "Use Area light type", "LAMP_AREA", 0),
-    ("BOX", "Area", "Use Area light type", "LAMP_AREA", 1),
-    ("SPHERE", "Area", "Use Area light type", "LAMP_AREA", 2),
-    ("ICOSPHERE", "Area", "Use Area light type", "LAMP_AREA", 3)
+    ("PLANE", "Plane", "Use Plane light type", "MESH_PLANE", 0),
+    ("CIRCLE", "Circle", "Use Circle light type", "MESH_CIRCLE", 1),
+    ("BOX", "Box", "Use Box light type", "MESH_CUBE", 2),
+    ("SPHERE", "Sphere", "Use Sphere light type", "MESH_UVSPHERE", 3),
+    ("ICOSPHERE", "Icosphere", "Use Icosphere light type", "MESH_ICOSPHERE", 4)
     )
 lamptypes = (
     # Lamp types
@@ -24,13 +25,15 @@ lamptypes = (
 # Class to define properties
 class LightViewProperties(bpy.types.PropertyGroup):
     p = bpy.props
-    options = bpy.props.BoolProperty(name="Options", description="Additional option", default=False)
-    meshorlamp = bpy.props.BoolProperty(name="Mesh light", description="Mesh Based Light", default=False) # mesh or lamp object
+    lv_options = p.BoolProperty(name="Options", description="Additional option", default=False)
+    lv_meshlight = p.BoolProperty(name="Mesh light", description="Mesh Based Light", default=False) # mesh or lamp object
+    lv_lamptype = p.EnumProperty(name="Lamp Light Type", items=lamptypes, description="Choose which type of lamp light you want created", default='AREA') # default 3/area
+    lv_meshtype = p.EnumProperty(name="Mesh Light Type", items=meshtypes, description="Choose which type of mesh light you want created", default='PLANE') # default plane
 
-    lv_meshtype = p.EnumProperty(name="Light Type", items=meshtypes, description="Choose which type of light you want created", default="AREA")
-
-    lv_lampsize = p.FloatProperty(name="Light Size", min=0.0, max=100.0, default=0.10, description="Size of the area of the created lamp") # lamp size 
-    lv_custom_mat = bpy.props.BoolProperty(name="Custom Material", description="Use an existing material", default=False) # custom mat
+    lv_lightsize = p.FloatProperty(name="Light Size", min=0.0, max=10000.0, default=0.10, description="Size of the area of the created lamp") # light size
+    lv_lightsizeX = p.FloatProperty(name="Light Size X", min=0.0, max=10000.0, default=0.10, description="Size of the X area of the created lamp") # light size 
+    lv_lightsizeY = p.FloatProperty(name="Light Size Y", min=0.0, max=10000.0, default=0.10, description="Size of the Y area of the created lamp") # light size 
+    lv_custom_mat = p.BoolProperty(name="Custom Material", description="Use an existing material", default=False) # custom mat
     lv_lightstrength = p.FloatProperty(name="Light Strength", min=0.0, max=5000.0, default=1.0, description="Strength of the light") # light strength
     # light color
 
@@ -47,19 +50,36 @@ class addLightViewPanel(bpy.types.Panel):
         search_props = bpy.context.window_manager.lightview
         layout = self.layout
         row = self.layout.row()
-        # Find index of lv_lamptype selection, tuple wants number not string
-        lamptypeindex = [icoLamptype for icoLamptype in lamptypes if search_props.lv_lamptype in icoLamptype][0][4]
-        icontype = lamptypes[lamptypeindex][3] # icon for lamp type.
-        row.operator("object.lightview", text="Add Light!", icon=icontype) # Run the lightview operator
-        col = layout.column()
-        col.label("Light Type")
+        # Make UI buttons show names/icons
+        if search_props.lv_meshlight == True:
+            # Find index of lv_lamptype selection, tuple wants number not string
+            meshtypeindex = [icoMeshtype for icoMeshtype in meshtypes if search_props.lv_meshtype in icoMeshtype][0][4]
+            lampname = "Add " + meshtypes[meshtypeindex][1] + " Light!" # name for lamp type.
+            icontype = meshtypes[meshtypeindex][3] # icon for lamp type.
+        else:
+            # Find index of lv_lamptype selection, tuple wants number not string
+            lamptypeindex = [icoLamptype for icoLamptype in lamptypes if search_props.lv_lamptype in icoLamptype][0][4]
+            lampname = "Add " + lamptypes[lamptypeindex][1] + " Light!" # name for lamp type.
+            icontype = lamptypes[lamptypeindex][3] # icon for lamp type.
+
+        row.operator("object.lightview", text=lampname, icon=icontype) # Run the lightview operator
         row = layout.row()
-        row.prop(search_props, "lv_lamptype", text="")
-        row.prop(search_props, "options", icon="SCRIPTPLUGINS") # Show/Hide Option
+        row.label("Light Type")
+        row.prop(search_props, "lv_meshlight", text="Mesh")
+        row = layout.row()
+        if search_props.lv_meshlight == True:
+            row.prop(search_props, "lv_meshtype", text="")
+        else:
+            row.prop(search_props, "lv_lamptype", text="")
+        row.prop(search_props, "lv_options", text="Options") # Show/Hide Option
         row = self.layout.row()
-        if search_props.options:
+        if search_props.lv_options:
             col = layout.column()
             col.label("Light settings")
+            if lampname == 'AREA':
+                col = layout.column()
+                col.prop(search_props, "lv_lightsize", text="Light Size")
+
             
 
 # Create Operator
