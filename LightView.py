@@ -1,41 +1,53 @@
-import bpy
+import bpy, math, time
 from bpy.props import *
-
+print("LightView run at: " + str(time.clock()))
 # Global settings
 
 # Light type settings
 meshorlamp = False
-meshtypes = (
-    # Mesh Types
-    ("PLANE", "Plane", "Use Plane light type", "MESH_PLANE", 0),
-    ("CIRCLE", "Circle", "Use Circle light type", "MESH_CIRCLE", 1),
-    ("BOX", "Box", "Use Box light type", "MESH_CUBE", 2),
-    ("SPHERE", "Sphere", "Use Sphere light type", "MESH_UVSPHERE", 3),
-    ("ICOSPHERE", "Icosphere", "Use Icosphere light type", "MESH_ICOSPHERE", 4)
-    )
 lamptypes = (
     # Lamp types
     ("POINT", "Point", "Use Point light type", "LAMP_POINT", 0),
     ("SUN", "Sun", "Use Sun light type", "LAMP_SUN", 1),
     ("SPOT", "Spot", "Use Spot light type", "LAMP_SPOT", 2), 
     ("AREA", "Area", "Use Area light type", "LAMP_AREA", 3),
-    ("HEMI", "Hemi", "Use Hemi light type", "LAMP_HEMI", 4)
+    # Mesh Types
+    ("PLANE", "Plane", "Use Plane light type", "MESH_PLANE", 4),
+    ("CIRCLE", "Circle", "Use Circle light type", "MESH_CIRCLE", 5),
+    ("CUBE", "Cube", "Use Cube light type", "MESH_CUBE", 6),
+    ("SPHERE", "Sphere", "Use Sphere light type", "MESH_UVSPHERE", 7),
+    ("ICOSPHERE", "Icosphere", "Use Icosphere light type", "MESH_ICOSPHERE", 8),
+    ("CAMERA", "Camera", "Use Camera light type", "CAMERA_DATA", 9)
     )
 
 # Class to define properties
 class LightViewProperties(bpy.types.PropertyGroup):
     p = bpy.props
-    lv_options = p.BoolProperty(name="Options", description="Additional option", default=False)
-    lv_meshlight = p.BoolProperty(name="Mesh light", description="Mesh Based Light", default=False) # mesh or lamp object
-    lv_lamptype = p.EnumProperty(name="Lamp Light Type", items=lamptypes, description="Choose which type of lamp light you want created", default='AREA') # default 3/area
-    lv_meshtype = p.EnumProperty(name="Mesh Light Type", items=meshtypes, description="Choose which type of mesh light you want created", default='PLANE') # default plane
 
+# UI Switches
+    # mesh/lamp light objects
+    lv_meshlight = p.BoolProperty(name="Mesh light", description="Mesh Based Light", default=False) 
+    lv_lamptype = p.EnumProperty(name="Lamp Light Type", items=lamptypes, description="Choose which type of lamp light you want created", default='AREA') # default 3/area
     lv_lightsize = p.FloatProperty(name="Light Size", min=0.0, max=10000.0, default=0.10, description="Size of the area of the created lamp") # light size
-    lv_lightsizeX = p.FloatProperty(name="Light Size X", min=0.0, max=10000.0, default=0.10, description="Size of the X area of the created lamp") # light size 
+    lv_lightsizearea = p.FloatProperty(name="Area Light Size", min=0.0, max=10000.0, default=1.0, description="Size of the square area lamp") # square area light size
+# Area Lamp
+    lv_areatype = p.EnumProperty(name="Shape of Area Lamp", items=[('SQUARE', 'Square', 'Square area shape', 0), ('RECTANGLE', 'Rectangle', 'Recntangle area shape', 1)], description="Choose which type of lamp light you want created", default="SQUARE")
     lv_lightsizeY = p.FloatProperty(name="Light Size Y", min=0.0, max=10000.0, default=0.10, description="Size of the Y area of the created lamp") # light size 
+# Spot lamp
+    lv_spotsize = p.IntProperty(name="Spot Size", min=1, max=180, default=45, description="Size of the spot for the created lamp") # spot size 
+    lv_spotblend = p.FloatProperty(name="Spot Blend", min=0.0, max=1.0, default=0.150, description="Softness of the spotlight edge") # spot blend 
+    lv_spotshowcone = p.BoolProperty(name="Show Spot Cone", description="Show Spotlight cone", default=False) # custom mat
+# Mesh Type props
+    lv_meshradius = p.FloatProperty(name="Radius", min=0.0, max=1000000.0, default=1, description="The size/radius of created mesh") # light size 
+    lv_meshcirclefill = p.EnumProperty(name="Fill type for circle", items=[('NGON', 'Ngon', 'Use Ngons', 0), ('TRIFAN', 'Trifan', 'Use Triangle fans', 1)], description="Choose the fill type for your circle", default="NGON")
+    lv_meshverticies = p.IntProperty(name="Verticies", min=3, max=500, default=16, description="Amount of Verticies in mesh") # Verticies
+    lv_meshsegments = p.IntProperty(name="Segments", min=3, max=500, default=32, description="Amount of Segments in sphere") # segments
+    lv_meshringcount = p.IntProperty(name="Rings", min=3, max=500, default=16, description="Amount of Rings in sphere") # ring_count
+    lv_meshsubdivisions = p.IntProperty(name="Subdivisions", min=1, max=8, default=2, description="Amount of Subdivisions in Icosphere") # subdivisions
+# Materials ####
     lv_custom_mat = p.BoolProperty(name="Custom Material", description="Use an existing material", default=False) # custom mat
-    lv_lightstrength = p.FloatProperty(name="Light Strength", min=0.0, max=5000.0, default=1.0, description="Strength of the light") # light strength
-    # light color
+    lv_emissionstrength = p.FloatProperty(name="Light Strength", min=0.0, max=5000.0, default=1.0, description="Strength of the light") # light strength
+    lv_emissioncolor = p.FloatVectorProperty(subtype="COLOR", min=0, max=1) # light color
 
 ############################    
 ## Draw Panel in Toolbar
@@ -47,41 +59,76 @@ class addLightViewPanel(bpy.types.Panel):
     bl_context = 'objectmode'
 
     def draw(self, context):
-        search_props = bpy.context.window_manager.lightview
+        props = bpy.context.window_manager.lightview
         layout = self.layout
-        row = self.layout.row()
-        # Make UI buttons show names/icons
-        if search_props.lv_meshlight == True:
-            # Find index of lv_lamptype selection, tuple wants number not string
-            meshtypeindex = [icoMeshtype for icoMeshtype in meshtypes if search_props.lv_meshtype in icoMeshtype][0][4]
-            lampname = "Add " + meshtypes[meshtypeindex][1] + " Light!" # name for lamp type.
-            icontype = meshtypes[meshtypeindex][3] # icon for lamp type.
-        else:
-            # Find index of lv_lamptype selection, tuple wants number not string
-            lamptypeindex = [icoLamptype for icoLamptype in lamptypes if search_props.lv_lamptype in icoLamptype][0][4]
-            lampname = "Add " + lamptypes[lamptypeindex][1] + " Light!" # name for lamp type.
-            icontype = lamptypes[lamptypeindex][3] # icon for lamp type.
-
-        row.operator("object.lightview", text=lampname, icon=icontype) # Run the lightview operator
         row = layout.row()
-        row.label("Light Type")
-        row.prop(search_props, "lv_meshlight", text="Mesh")
-        row = layout.row()
-        if search_props.lv_meshlight == True:
-            row.prop(search_props, "lv_meshtype", text="")
-        else:
-            row.prop(search_props, "lv_lamptype", text="")
-        row.prop(search_props, "lv_options", text="Options") # Show/Hide Option
+        row.prop(props, "lv_lamptype", text="Type")
         row = self.layout.row()
-        if search_props.lv_options:
+        # Make UI buttons show names
+        # Find index of lv_lamptype selection, tuple wants number not string
+        lamptypeindex = [icoLamptype for icoLamptype in lamptypes if props.lv_lamptype in icoLamptype][0][4]
+        lightname = lamptypes[lamptypeindex][1] # name for lamp type.
+        # icontype = lamptypes[lamptypeindex][3] # icon for lamp type.
+        lighttext = "Create " + lightname + " Light!"
+        # create operator button from custom icons
+        row.operator("object.lightview", text=lighttext, icon="PLAY")
+        col = layout.column()
+        col.label(lightname + " Options")
+        # Spot
+        if lightname == 'Spot':
             col = layout.column()
-            col.label("Light settings")
-            if lampname == 'AREA':
-                col = layout.column()
-                col.prop(search_props, "lv_lightsize", text="Light Size")
+            col.prop(props, "lv_lightsize", text="Light Size")
+            col = layout.column(align=True)
+            col.label("Spot Settings")
+            col.prop(props, "lv_spotsize", text="Spot Size")
+            col.prop(props, "lv_spotblend", text="Blend")
+            col.prop(props, "lv_spotshowcone", text="Show Cone")
+        # Area
+        elif lightname == 'Area':
+            col = layout.column(align=True)
+            col.prop(props, "lv_areatype", text="")
+            if props.lv_areatype == "SQUARE":
+                col.prop(props, "lv_lightsizearea", text="Light Size")
+            else:
+                col.prop(props, "lv_lightsize", text="Light Size X")
+                col.prop(props, "lv_lightsizeY", text="Light Size Y")
+        # Point and Sun
+        elif lightname in ['Point', 'Sun']:
+            col = layout.column()
+            col.prop(props, "lv_lightsize", text="Light Size")
+        # Mesh types
+        # Plane
+        elif lightname == "Plane":
+            col = layout.column(align=True)
+            col.prop(props, "lv_meshradius", text="Radius")
+        elif lightname == "Circle":
+            col = layout.column(align=True)
+            col.prop(props, "lv_meshradius", text="Radius") # radius
+            col.prop(props, "lv_meshverticies", text="Verticies") # verticies
+            col.prop(props, "lv_meshcirclefill", text="Fill Type") # fill_type
+        elif lightname == "Cube":
+            col = layout.column(align=True)
+            col.prop(props, "lv_meshradius", text="Radius") # radius
+        elif lightname == "Sphere":
+            col = layout.column(align=True)
+            col.prop(props, "lv_meshradius", text="Radius") # radius
+            col.prop(props, "lv_meshsegments", text="Segments") # segments
+            col.prop(props, "lv_meshringcount", text="Ring Count") # ring_count
+        elif lightname == "Ic":
+            col = layout.column(align=True)
+            col.prop(props, "lv_meshradius", text="Radius") # radius
+            # subdivisions
+        elif lightname == "Camera":
+            col = layout.column(align=True)
+            col.label("!!!WARNING!!!")
+            col.label("NO LIGHT CREATED")
+            col.label("WITH THIS OPTION!")
 
-            
-
+        # Material
+        col = layout.column()
+        col.label("Emission Options")
+        col.prop(props, "lv_emissioncolor", text="Emission Color")
+        col.prop(props, "lv_emissionstrength", text="Emission Strength")
 # Create Operator
 class OBJECT_OT_makelight(bpy.types.Operator):
     bl_idname = "object.lightview"
@@ -90,7 +137,7 @@ class OBJECT_OT_makelight(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
-        search_props = bpy.context.window_manager.lightview
+        props = bpy.context.window_manager.lightview
         scn = bpy.context.screen.scene
 
         origcam = scn.camera # remember original Camera
@@ -99,14 +146,50 @@ class OBJECT_OT_makelight(bpy.types.Operator):
         scn.camera = coordcam # now make me the active camera
         bpy.ops.view3d.camera_to_view() # now that I'm active, align me to the current view
         viewcoords = coordcam.location # get my coordinates coordinates
-
+        # Add Object
+        current_lightype = props.lv_lamptype
         # Add new lamp object with coordcam coordinates and aligned to view
-        bpy.ops.object.lamp_add(type=search_props.lv_lamptype, view_align=True, location=viewcoords)
-        newlight = bpy.context.active_object # I'm the new light
+        if current_lightype in ["POINT", "SUN", "SPOT", "AREA"]:
+            bpy.ops.object.lamp_add(type=current_lightype, view_align=True, location=viewcoords)
+            newlight = bpy.context.active_object # I'm the new light
+            newlight.data.node_tree.nodes['Emission'].inputs[0].default_value = props.lv_emissioncolor
+            if current_lightype == "SPOT":
+                newlight.data.shadow_soft_size = props.lv_lightsize
+                newlight.data.spot_size = math.radians(props.lv_spotsize)
+                newlight.data.spot_blend = props.lv_spotblend
+                newlight.data.show_cone = props.lv_spotshowcone
+
+            if current_lightype == "AREA":
+                newlight.data.shape = props.lv_areatype
+                newlight.data.size = props.lv_lightsize
+                newlight.data.size_y = props.lv_lightsizeY
+            else:
+                newlight.data.shadow_soft_size = props.lv_lightsize
+        elif current_lightype == "PLANE":
+            bpy.ops.mesh.primitive_plane_add(radius=props.lv_meshradius, view_align=True, location=viewcoords)
+            newlight = bpy.context.active_object # I'm the new light
+
+        elif current_lightype == "CIRCLE":
+            bpy.ops.mesh.primitive_circle_add(vertices=props.lv_meshv, radius=props.lv_meshradius, fill_type=props.lv_meshcirclefill, view_align=True, location=viewcoords)
+            newlight = bpy.context.active_object # I'm the new light
+
+        elif current_lightype == "CUBE":
+            bpy.ops.mesh.primitive_cube_add(radius=props.lv_meshradius, view_align=True, location=viewcoords)
+            newlight = bpy.context.active_object # I'm the new light
+
+        elif current_lightype == "SPHERE":
+            bpy.ops.mesh.primitive_uv_sphere_add(segments=props.lv_meshs, ring_count=props.lv_meshringcount, size=props.lv_meshradius, view_align=True, location=viewcoords)
+            newlight = bpy.context.active_object # I'm the new light
+
+        elif current_lightype == "ICOSPHERE":
+            bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=props.lv_meshsubdivisions, size=props.lv_meshradius, view_align=True, location=viewcoords)
+            newlight = bpy.context.active_object # I'm the new light
+
         # Done with coord camera, first unselect all, then reselect and delete
-        bpy.ops.object.select_all() # deselect
-        coordcam.select = True # Select coordcam
-        bpy.ops.object.delete() # Delete coord camera
+        if current_lightype != "CAMERA":
+            bpy.ops.object.select_all() # deselect
+            coordcam.select = True # Select coordcam
+            bpy.ops.object.delete() # Delete coord camera
         scn.camera = origcam # set original camera as active again
         newlight.select = True # Select newlight
         return {'FINISHED'} # operator worked! 
