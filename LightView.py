@@ -1,6 +1,40 @@
+#BEGIN GPL LICENSE BLOCK
+
+#This program is free software; you can redistribute it and/or
+#modify it under the terms of the GNU General Public License
+#as published by the Free Software Foundation; either version 2
+#of the License, or (at your option) any later version.
+
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.    See the
+#GNU General Public License for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with this program; if not, write to the Free Software Foundation,
+#Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+#END GPL LICENCE BLOCK
+
+bl_info = {
+    'name': "Light Cannon",
+    'author': "crazycourier",
+    'version': (0, 1, 0),
+    'blender': (2, 6, 9),
+    'location': "View3D > Tools > Light Cannon",
+    'description': "Tools creating lights from current view.",
+    'warning': "Still under development, bug reports appreciated",
+    'wiki_url': "",
+    'tracker_url': "",
+    'category': "Object"
+    }
+
 import bpy, math, time
 from bpy.props import *
-print("LightView run at: " + str(time.clock()))
+############ TIMESTAMP FOR DEV PURPOSE
+############ REMOVE
+print("LightCannon run at: " + str(time.clock()))
+############ /REMOVE
 # Global settings
 
 # Light type settings
@@ -21,7 +55,7 @@ lamptypes = (
     )
 
 # Class to define properties
-class LightViewProperties(bpy.types.PropertyGroup):
+class LightCannonProperties(bpy.types.PropertyGroup):
     p = bpy.props
 
 # UI Switches
@@ -47,19 +81,19 @@ class LightViewProperties(bpy.types.PropertyGroup):
 # Materials ####
     lv_custom_mat = p.BoolProperty(name="Custom Material", description="Use an existing material", default=False) # custom mat
     lv_emissionstrength = p.FloatProperty(name="Light Strength", min=0.0, max=5000.0, default=1.0, description="Strength of the light") # light strength
-    lv_emissioncolor = p.FloatVectorProperty(subtype="COLOR", min=0, max=1) # light color
+    lv_emissioncolor = p.FloatVectorProperty(subtype="COLOR", default=(1.0, 1.0, 1.0), min=0, max=1) # light color
 
 ############################    
 ## Draw Panel in Toolbar
 ############################
-class addLightViewPanel(bpy.types.Panel):
-    bl_label = "LightView"
+class addLightCannonPanel(bpy.types.Panel):
+    bl_label = "Light Cannon"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
     bl_context = 'objectmode'
 
     def draw(self, context):
-        props = bpy.context.window_manager.lightview
+        props = bpy.context.window_manager.lightcannon
         layout = self.layout
         row = layout.row()
         row.prop(props, "lv_lamptype", text="Type")
@@ -71,7 +105,7 @@ class addLightViewPanel(bpy.types.Panel):
         # icontype = lamptypes[lamptypeindex][3] # icon for lamp type.
         lighttext = "Create " + lightname + " Light!"
         # create operator button from custom icons
-        row.operator("object.lightview", text=lighttext, icon="PLAY")
+        row.operator("object.lightcannon", text=lighttext, icon="PLAY")
         col = layout.column()
         col.label(lightname + " Options")
         # Spot
@@ -131,13 +165,13 @@ class addLightViewPanel(bpy.types.Panel):
         col.prop(props, "lv_emissionstrength", text="Emission Strength")
 # Create Operator
 class OBJECT_OT_makelight(bpy.types.Operator):
-    bl_idname = "object.lightview"
-    bl_label = "LightView"
+    bl_idname = "object.lightcannon"
+    bl_label = "LightCannon"
     bl_description = "Create Light from current view"
     bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
-        props = bpy.context.window_manager.lightview
+        props = bpy.context.window_manager.lightcannon
         scn = bpy.context.screen.scene
 
         origcam = scn.camera # remember original Camera
@@ -196,18 +230,18 @@ class OBJECT_OT_makelight(bpy.types.Operator):
 
 ### Wrap this baby up, define Classes to register
 classes = [
-    LightViewProperties, 
-    addLightViewPanel, 
+    LightCannonProperties, 
+    addLightCannonPanel, 
     OBJECT_OT_makelight
     ]
 
 def register():
     for c in classes:
         bpy.utils.register_class(c)
-    bpy.types.WindowManager.lightview = bpy.props.PointerProperty(type=LightViewProperties)
+    bpy.types.WindowManager.lightcannon = bpy.props.PointerProperty(type=LightCannonProperties)
 def unregister():
     for c in classes:
         bpy.utils.unregister_class(c)
-    del bpy.types.WindowManager.lightview
+    del bpy.types.WindowManager.lightcannon
 if __name__ == "__main__":
     register()
