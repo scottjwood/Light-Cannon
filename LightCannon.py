@@ -37,8 +37,8 @@ from bpy.props import *
 
 ############ TIMESTAMP FOR DEV PURPOSE
 ############ REMOVE
-import time
-print("LightCannon run at: " + str(time.clock()))
+# import time
+# print("LightCannon run at: " + str(time.clock()))
 ############ /REMOVE
 # Global settings
 
@@ -49,7 +49,7 @@ shift_custom=True
 alt_custom=False
 oskey_custom=False
 # Register Custom Keyboard short
-bpy.data.window_managers[0].keyconfigs.active.keymaps['3D View'].keymap_items.new('object.lightcannon',value='PRESS',type=keyboardkey,ctrl=ctrl_custom,alt=alt_custom,shift=shift_custom,oskey=oskey_custom)
+# bpy.data.window_managers[0].keyconfigs.active.keymaps['3D View'].keymap_items.new('object.lightcannon',value='PRESS',type=keyboardkey,ctrl=ctrl_custom,alt=alt_custom,shift=shift_custom,oskey=oskey_custom)
 
 # Light type settings
 meshorlamp = False
