@@ -23,21 +23,33 @@ bl_info = {
     'blender': (2, 6, 9),
     'location': "View3D > Tools > Light Cannon",
     'description': "Tools creating lights from current view.",
-    'warning': "Still under development, bug reports appreciated",
+    'warning': "Always under development, bug reports appreciated",
     'wiki_url': "",
     'tracker_url': "",
     'category': "Object"
     }
 
+
 import bpy
-import math, time
+import math
 from mathutils import Vector
 from bpy.props import *
+
 ############ TIMESTAMP FOR DEV PURPOSE
 ############ REMOVE
+import time
 print("LightCannon run at: " + str(time.clock()))
 ############ /REMOVE
 # Global settings
+
+# Keyboard Shortcut
+keyboardkey='F'
+ctrl_custom=True
+shift_custom=True
+alt_custom=False
+oskey_custom=False
+# Register Custom Keyboard short
+bpy.data.window_managers[0].keyconfigs.active.keymaps['3D View'].keymap_items.new('object.lightcannon',value='PRESS',type=keyboardkey,ctrl=ctrl_custom,alt=alt_custom,shift=shift_custom,oskey=oskey_custom)
 
 # Light type settings
 meshorlamp = False
@@ -65,7 +77,7 @@ class LightCannonProperties(bpy.types.PropertyGroup):
 # UI Switches
     # mesh/lamp light objects
     lv_meshlight = p.BoolProperty(name="Mesh light", description="Mesh Based Light", default=False) 
-    lv_lamptype = p.EnumProperty(name="Lamp Light Type", items=lamptypes, description="Choose which type of lamp light you want created", default='AREA') # default 3/area
+    lv_lamptype = p.EnumProperty(name="Lamp Light Type", items=lamptypes, description="Choose which type of lamp light you want created", default='SPOT') # default 3/area
     lv_lightsize = p.FloatProperty(name="Light Size", min=0.0, max=10000.0, default=0.10, description="Size of the area of the created lamp") # light size
     lv_lightsizearea = p.FloatProperty(name="Area Light Size", min=0.0, max=10000.0, default=1.0, description="Size of the square area lamp") # square area light size
 # Area Lamp
@@ -87,7 +99,7 @@ class LightCannonProperties(bpy.types.PropertyGroup):
     lv_emissionstrength = p.FloatProperty(name="Light Strength", min=0.0, max=5000.0, default=1.0, description="Strength of the light") # light strength
     lv_emissioncolor = p.FloatVectorProperty(size=4, subtype="COLOR", default=(1.0, 1.0, 1.0, 1.0), min=0, max=1.0) # light color
     # Ray Visibility
-    lv_raycamera = p.BoolProperty(name="Camera", description="Camera Ray Visibility", default=True) 
+    lv_raycamera = p.BoolProperty(name="Camera", description="Camera Ray Visibility", default=False) 
     lv_raydiffuse = p.BoolProperty(name="Diffuse", description="Diffuse Ray Visibility", default=True) 
     lv_rayglossy = p.BoolProperty(name="Glossy", description="Glossy Ray Visibility", default=True) 
     lv_raytransmission = p.BoolProperty(name="Transmission", description="Transmission Ray Visibility", default=True) 
@@ -116,20 +128,23 @@ class addLightCannonPanel(bpy.types.Panel):
         lighttext = "Create " + lightname + " Light!"
         # create operator button from custom icons
         row.operator("object.lightcannon", text=lighttext, icon="PLAY")
-        col = layout.column()
+        row = layout.row()
+        row.label("Settings") # sloppy to add space
+        box = self.layout.box()
+        col = box.column(align=True)
         col.label(lightname + " Options")
         # Spot
         if lightname == 'Spot':
-            col = layout.column()
+            col = box.column()
             col.prop(props, "lv_lightsize", text="Light Size")
-            col = layout.column(align=True)
+            col = box.column(align=True)
             col.label("Spot Settings")
             col.prop(props, "lv_spotsize", text="Spot Size")
             col.prop(props, "lv_spotblend", text="Blend")
             col.prop(props, "lv_spotshowcone", text="Show Cone")
         # Area
         elif lightname == 'Area':
-            col = layout.column(align=True)
+            col = box.column(align=True)
             col.prop(props, "lv_areatype", text="")
             if props.lv_areatype == "SQUARE":
                 col.prop(props, "lv_lightsizearea", text="Light Size")
@@ -138,41 +153,56 @@ class addLightCannonPanel(bpy.types.Panel):
                 col.prop(props, "lv_lightsizeY", text="Light Size Y")
         # Point and Sun
         elif lightname in ['Point', 'Sun']:
-            col = layout.column()
+            col = box.column()
             col.prop(props, "lv_lightsize", text="Light Size")
         # Mesh types
         # Plane
         elif lightname == "Plane":
-            col = layout.column(align=True)
+            col = box.column(align=True)
             col.prop(props, "lv_meshradius", text="Radius")
         elif lightname == "Circle":
-            col = layout.column(align=True)
+            col = box.column(align=True)
             col.prop(props, "lv_meshradius", text="Radius") # radius
             col.prop(props, "lv_meshverticies", text="Verticies") # verticies
             col.prop(props, "lv_meshcirclefill", text="Fill Type") # fill_type
         elif lightname == "Cube":
-            col = layout.column(align=True)
+            col = box.column(align=True)
             col.prop(props, "lv_meshradius", text="Radius") # radius
         elif lightname == "Sphere":
-            col = layout.column(align=True)
+            col = box.column(align=True)
             col.prop(props, "lv_meshradius", text="Radius") # radius
             col.prop(props, "lv_meshsegments", text="Segments") # segments
             col.prop(props, "lv_meshringcount", text="Ring Count") # ring_count
         elif lightname == "Ic":
-            col = layout.column(align=True)
+            col = box.column(align=True)
             col.prop(props, "lv_meshradius", text="Radius") # radius
             # subdivisions
         elif lightname == "Camera":
-            col = layout.column(align=True)
+            col = box.column(align=True)
             col.label("!!!WARNING!!!")
             col.label("NO LIGHT CREATED")
             col.label("WITH THIS OPTION!")
 
         # Material
-        col = layout.column()
-        col.label("Emission Options")
-        col.prop(props, "lv_emissioncolor", text="Emission Color")
-        col.prop(props, "lv_emissionstrength", text="Emission Strength")
+        box = self.layout.box()
+        row = box.row()
+        row.label("Emission Settings")
+        col = box.column(align=True)
+        col.prop(props, "lv_emissioncolor", text="")
+        col.prop(props, "lv_emissionstrength", text="Strength")
+
+        # Ray visibility
+        box = self.layout.box()
+        col = box.column()
+        col.label("Ray Visibility")
+        row = box.row()
+        row.prop(props, "lv_raycamera", text="Camera")
+        row.prop(props, "lv_raydiffuse", text="Diffuse")
+        row = box.row()
+        row.prop(props, "lv_rayglossy", text="Glossy")
+        row.prop(props, "lv_raytransmission", text="Transmission")
+        row = box.row()
+        row.prop(props, "lv_rayshadow", text="Shadow")
 
 ###################
 # Make Tools
@@ -284,9 +314,12 @@ class OBJECT_OT_makelight(bpy.types.Operator):
             bpy.ops.object.select_all() # deselect all
             coordcam.select = True # Select coordcam, don't need it
             bpy.ops.object.delete() # Delete coordcam, we'll miss you.
-        scn.camera = origcam # set original camera as active again
+            scn.camera = origcam # set original camera as active again
+        else:
+            newlight = bpy.context.active_object
         newlight.select = True # Select newlight
         return {'FINISHED'} # operator worked! 
+
 
 ### Wrap this baby up, define Classes to register
 classes = [
