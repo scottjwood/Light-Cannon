@@ -255,7 +255,7 @@ class OBJECT_OT_makelight(bpy.types.Operator):
                 bpy.ops.mesh.primitive_cube_add(radius=props.lv_meshradius, view_align=True, location=viewcoords)
 
             elif current_lightype == "SPHERE":
-                bpy.ops.mesh.primitive_uv_sphere_add(segments=props.lv_meshs, ring_count=props.lv_meshringcount, size=props.lv_meshradius, view_align=True, location=viewcoords)
+                bpy.ops.mesh.primitive_uv_sphere_add(segments=props.lv_meshsegments, ring_count=props.lv_meshringcount, size=props.lv_meshradius, view_align=True, location=viewcoords)
 
             elif current_lightype == "ICOSPHERE":
                 bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=props.lv_meshsubdivisions, size=props.lv_meshradius, view_align=True, location=viewcoords)
@@ -272,6 +272,12 @@ class OBJECT_OT_makelight(bpy.types.Operator):
             raylight.glossy = props.lv_rayglossy
             raylight.transmission = props.lv_raytransmission
             raylight.shadow = props.lv_rayshadow
+
+        # Add Newly created object to Light Cannon Group
+        if len([group for group in bpy.data.groups if group.name == 'LightCannon']) < 1:
+            bpy.ops.group.create(name="LightCannon")  
+        
+        bpy.ops.object.group_link(group="LightCannon")
 
         # Done with coord camera, first unselect all, then reselect and delete
         if current_lightype != "CAMERA":
