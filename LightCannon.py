@@ -1,55 +1,10 @@
-#BEGIN GPL LICENSE BLOCK
-
-#This program is free software; you can redistribute it and/or
-#modify it under the terms of the GNU General Public License
-#as published by the Free Software Foundation; either version 2
-#of the License, or (at your option) any later version.
-
-#This program is distributed in the hope that it will be useful,
-#but WITHOUT ANY WARRANTY; without even the implied warranty of
-#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.    See the
-#GNU General Public License for more details.
-
-#You should have received a copy of the GNU General Public License
-#along with this program; if not, write to the Free Software Foundation,
-#Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
-#END GPL LICENCE BLOCK
-
-bl_info = {
-    'name': "Light Cannon",
-    'author': "crazycourier",
-    'version': (0, 1, 0),
-    'blender': (2, 6, 9),
-    'location': "View3D > Tools > Light Cannon",
-    'description': "Tools creating lights from current view.",
-    'warning': "Always under development, bug reports appreciated",
-    'wiki_url': "",
-    'tracker_url': "",
-    'category': "Object"
-    }
-
-
 import bpy
 import math
 from mathutils import Vector
 from bpy.props import *
+from bpy.types import Panel
 
-############ TIMESTAMP FOR DEV PURPOSE
-############ REMOVE
-# import time
-# print("LightCannon run at: " + str(time.clock()))
-############ /REMOVE
 # Global settings
-
-# Keyboard Shortcut
-keyboardkey='F'
-ctrl_custom=True
-shift_custom=True
-alt_custom=False
-oskey_custom=False
-# Register Custom Keyboard short
-# bpy.data.window_managers[0].keyconfigs.active.keymaps['3D View'].keymap_items.new('object.lightcannon',value='PRESS',type=keyboardkey,ctrl=ctrl_custom,alt=alt_custom,shift=shift_custom,oskey=oskey_custom)
 
 # Light type settings
 meshorlamp = False
@@ -108,11 +63,12 @@ class LightCannonProperties(bpy.types.PropertyGroup):
 ############################    
 ## Draw Panel in Toolbar
 ############################
-class addLightCannonPanel(bpy.types.Panel):
+class addLightCannonPanel(Panel):
+    bl_idname = "LIGHTCANNON_PT_lightCannonPanel"
     bl_label = "Light Cannon"
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
-    bl_category = 'Create'
+    bl_region_type = 'UI'
+    bl_category = 'Light Cannon'
     bl_context = 'objectmode'
 
     def draw(self, context):
@@ -130,16 +86,16 @@ class addLightCannonPanel(bpy.types.Panel):
         # create operator button from custom icons
         row.operator("object.lightcannon", text=lighttext, icon="PLAY")
         row = layout.row()
-        row.label("Settings") # sloppy to add space
+        row.label(text="Settings") # sloppy to add space
         box = self.layout.box()
         col = box.column(align=True)
-        col.label(lightname + " Options")
+        col.label(text=lightname + " Options")
         # Spot
         if lightname == 'Spot':
             col = box.column()
             col.prop(props, "lv_lightsize", text="Light Size")
             col = box.column(align=True)
-            col.label("Spot Settings")
+            col.label(text="Spot Settings")
             col.prop(props, "lv_spotsize", text="Spot Size")
             col.prop(props, "lv_spotblend", text="Blend")
             col.prop(props, "lv_spotshowcone", text="Show Cone")
@@ -180,14 +136,14 @@ class addLightCannonPanel(bpy.types.Panel):
             # subdivisions
         elif lightname == "Camera":
             col = box.column(align=True)
-            col.label("!!!WARNING!!!")
-            col.label("NO LIGHT CREATED")
-            col.label("WITH THIS OPTION!")
+            col.label(text="!!!WARNING!!!")
+            col.label(text="NO LIGHT CREATED")
+            col.label(text="WITH THIS OPTION!")
 
         # Material
         box = self.layout.box()
         row = box.row()
-        row.label("Emission Settings")
+        row.label(text="Emission Settings")
         col = box.column(align=True)
         col.prop(props, "lv_emissioncolor", text="")
         col.prop(props, "lv_emissionstrength", text="Strength")
@@ -195,7 +151,7 @@ class addLightCannonPanel(bpy.types.Panel):
         # Ray visibility
         box = self.layout.box()
         col = box.column()
-        col.label("Ray Visibility")
+        col.label(text="Ray Visibility")
         row = box.row()
         row.prop(props, "lv_raycamera", text="Camera")
         row.prop(props, "lv_raydiffuse", text="Diffuse")
@@ -227,7 +183,7 @@ def addlightcannonmat(obj):
     node_tree.links.new(out_node.inputs[0], emission.outputs[0]) # Connect to output
 
     # Custom Settings
-    material.diffuse_color = props.lv_emissioncolor[0:3] # set viewport color
+    material.diffuse_color = props.lv_emissioncolor # set viewport color
     emission.inputs['Color'].default_value = props.lv_emissioncolor
     emission.inputs['Strength'].default_value = props.lv_emissionstrength
     obj.data.materials.append(material)
@@ -244,7 +200,7 @@ class OBJECT_OT_makelight(bpy.types.Operator):
     
     def execute(self, context):
         props = bpy.context.window_manager.lightcannon
-        scn = bpy.context.screen.scene
+        scn = bpy.context.scene
 
         origcam = scn.camera # remember original Camera
         bpy.ops.object.camera_add() # add new camera 
@@ -257,9 +213,10 @@ class OBJECT_OT_makelight(bpy.types.Operator):
         
         # Add new lamp object with coordcam coordinates and aligned to view
         if current_lightype in lamp_light:
-            bpy.ops.object.lamp_add(type=current_lightype, view_align=True, location=viewcoords)
+            bpy.ops.object.light_add(type=current_lightype, align="VIEW", location=viewcoords)
             newlight = bpy.context.active_object # I'm the new light
-            newlight.data.node_tree.nodes['Emission'].inputs[0].default_value = props.lv_emissioncolor
+            newlight.color = props.lv_emissioncolor
+            # newlight.data.node_tree.nodes['Emission'].inputs[0].default_value = props.lv_emissioncolor
             if current_lightype == "SPOT":
                 newlight.data.shadow_soft_size = props.lv_lightsize
                 newlight.data.spot_size = math.radians(props.lv_spotsize)
@@ -277,19 +234,19 @@ class OBJECT_OT_makelight(bpy.types.Operator):
         # Checking Mesh Types Now
         elif current_lightype in mesh_light:
             if current_lightype == "PLANE":
-                bpy.ops.mesh.primitive_plane_add(radius=props.lv_meshradius, view_align=True, location=viewcoords)
+                bpy.ops.mesh.primitive_plane_add(align="VIEW", location=viewcoords)
 
             elif current_lightype == "CIRCLE":
-                bpy.ops.mesh.primitive_circle_add(vertices=props.lv_meshverticies, radius=props.lv_meshradius, fill_type=props.lv_meshcirclefill, view_align=True, location=viewcoords)
+                bpy.ops.mesh.primitive_circle_add(vertices=props.lv_meshverticies, radius=props.lv_meshradius, fill_type=props.lv_meshcirclefill, align="VIEW", location=viewcoords)
 
             elif current_lightype == "CUBE":
-                bpy.ops.mesh.primitive_cube_add(radius=props.lv_meshradius, view_align=True, location=viewcoords)
+                bpy.ops.mesh.primitive_cube_add(align="VIEW", location=viewcoords)
 
             elif current_lightype == "SPHERE":
-                bpy.ops.mesh.primitive_uv_sphere_add(segments=props.lv_meshsegments, ring_count=props.lv_meshringcount, size=props.lv_meshradius, view_align=True, location=viewcoords)
+                bpy.ops.mesh.primitive_uv_sphere_add(segments=props.lv_meshsegments, ring_count=props.lv_meshringcount, size=props.lv_meshradius, align="VIEW", location=viewcoords)
 
             elif current_lightype == "ICOSPHERE":
-                bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=props.lv_meshsubdivisions, size=props.lv_meshradius, view_align=True, location=viewcoords)
+                bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=props.lv_meshsubdivisions, align="VIEW", location=viewcoords)
 
             # Add Emission material to new mesh obj
             newlight = bpy.context.active_object # I'm the new light
@@ -304,38 +261,23 @@ class OBJECT_OT_makelight(bpy.types.Operator):
             raylight.transmission = props.lv_raytransmission
             raylight.shadow = props.lv_rayshadow
 
-        # Add Newly created object to Light Cannon Group
-        if len([group for group in bpy.data.groups if group.name == 'LightCannon']) < 1:
-            bpy.ops.group.create(name="LightCannon")  
-        
-        bpy.ops.object.group_link(group="LightCannon")
-
         # Done with coord camera, first unselect all, then reselect and delete
         if current_lightype != "CAMERA":
             bpy.ops.object.select_all() # deselect all
-            coordcam.select = True # Select coordcam, don't need it
+            coordcam.select_set(True) # Select coordcam, don't need it
             bpy.ops.object.delete() # Delete coordcam, we'll miss you.
             scn.camera = origcam # set original camera as active again
         else:
             newlight = bpy.context.active_object
-        newlight.select = True # Select newlight
+        newlight.select_set(True) # Select newlight
+
+        # Add Newly created object to Light Cannon Collection
+        lc_collection = bpy.data.collections.keys()
+        if 'LightCannon' not in lc_collection:
+            mycol=bpy.data.collections.new(name="LightCannon")
+            bpy.context.scene.collection.children.link(mycol)
+        
+        bpy.data.collections["LightCannon"].objects.link(newlight) # Link to LightCannon collection
+        bpy.context.scene.collection.objects.unlink(newlight) # Unlink from scene collection
+        
         return {'FINISHED'} # operator worked! 
-
-
-### Wrap this baby up, define Classes to register
-classes = [
-    LightCannonProperties, 
-    addLightCannonPanel, 
-    OBJECT_OT_makelight
-    ]
-
-def register():
-    for c in classes:
-        bpy.utils.register_class(c)
-    bpy.types.WindowManager.lightcannon = bpy.props.PointerProperty(type=LightCannonProperties)
-def unregister():
-    for c in classes:
-        bpy.utils.unregister_class(c)
-    del bpy.types.WindowManager.lightcannon
-if __name__ == "__main__":
-    register()

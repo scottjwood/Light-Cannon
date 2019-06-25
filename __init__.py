@@ -19,8 +19,8 @@
 bl_info = {
     'name': "Light Cannon",
     'author': "crazycourier",
-    'version': (0, 1, 0),
-    'blender': (2, 6, 9),
+    'version': (0, 2, 0),
+    'blender': (2, 80, 0),
     'location': "View3D > Tools > Light Cannon",
     'description': "Tools creating lights from current view.",
     'warning': "Always under development, bug reports appreciated",
