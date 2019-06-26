@@ -271,13 +271,15 @@ class OBJECT_OT_makelight(bpy.types.Operator):
             newlight = bpy.context.active_object
         newlight.select_set(True) # Select newlight
 
-        # Add Newly created object to Light Cannon Collection
+        # Add Newly created object to LightCannon Collection
         lc_collection = bpy.data.collections.keys()
-        if 'LightCannon' not in lc_collection:
-            mycol=bpy.data.collections.new(name="LightCannon")
-            bpy.context.scene.collection.children.link(mycol)
+        if 'LightCannon' not in lc_collection: # Check if it exists
+            mycol=bpy.data.collections.new(name="LightCannon") # Make the collection
+            bpy.context.scene.collection.children.link(mycol) # Link it to the Master Collection so it shows up
         
-        bpy.data.collections["LightCannon"].objects.link(newlight) # Link to LightCannon collection
-        bpy.context.scene.collection.objects.unlink(newlight) # Unlink from scene collection
+        bpy.ops.collection.objects_remove_active() # Remove this new object from any collections it might be in
+
+        bpy.data.collections["LightCannon"].objects.link(newlight) # Link new object to LightCannon collection
+        # bpy.context.scene.collection.objects.unlink(newlight) # Unlink from scene collection
         
         return {'FINISHED'} # operator worked! 
